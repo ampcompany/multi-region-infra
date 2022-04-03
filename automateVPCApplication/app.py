@@ -1,11 +1,14 @@
 import tkinter as tk
 import tkinter.ttk as ttk
+from tkinter.scrolledtext import ScrolledText
 import socket
+
+from automateVPCApplication.create import Create
 
 
 class Window:
     def __init__(self, parent):
-        parent.geometry('450x300')
+        parent.geometry('500x300')
         parent.title('AWS Multi Region Strategy VPC Generator')
 
 
@@ -32,7 +35,10 @@ class App:
 
         self.progress_bar = ttk.Progressbar(parent, maximum=100, length=400, variable=self.progress_bar_val)
 
-        self.listbox = tk.Listbox(parent, width=60)
+        self.scrolled_text = ScrolledText(parent, state='disabled', height=12, width=67)
+        self.scrolled_text.tag_config('INFO', foreground='#000000', background='#ffffff')
+        self.scrolled_text.tag_config('SUCCESS', foreground='#000000', background='#00ff00')
+        self.scrolled_text.tag_config('ERROR', foreground='#ffffff', background='#ff0000')
 
         self.grid()
         self.check_internet_connectivity()
@@ -48,7 +54,7 @@ class App:
         self.alert_label.grid(row=3, column=0, columnspan=4)
         self.button.grid(row=0, column=3, rowspan=3, padx=10)
         self.progress_bar.grid(row=4, column=0, columnspan=4)
-        self.listbox.grid(row=5, column=0, columnspan=4, pady=10)
+        self.scrolled_text.grid(row=5, column=0, columnspan=4, pady=10)
 
     def check_internet_connectivity(self):
         ip = socket.gethostbyname(socket.gethostname())
@@ -76,6 +82,25 @@ class App:
             self.nat_option_input_radiobutton_yes.config(state=tk.DISABLED)
             self.nat_option_input_radiobutton_no.config(state=tk.DISABLED)
             self.button.config(state=tk.DISABLED)
+
+            create = Create(
+                access_key=self.access_key_input_val.get(),
+                secret_access_key=self.secret_access_key_input_val.get(),
+                alert_label=self.alert_label,
+                progress_bar=self.progress_bar,
+                progress_bar_val=self.progress_bar_val,
+                scrolled_text=self.scrolled_text
+            )
+
+            try:
+                create.start()
+
+            except Exception:
+                self.access_key_input_box.config(state=tk.NORMAL)
+                self.secret_access_key_input_box.config(state=tk.NORMAL)
+                self.nat_option_input_radiobutton_yes.config(state=tk.NORMAL)
+                self.nat_option_input_radiobutton_no.config(state=tk.NORMAL)
+                self.button.config(state=tk.NORMAL)
 
 
 def main():

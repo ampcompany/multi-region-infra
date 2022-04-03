@@ -33,29 +33,41 @@ class Aws:
             ['', ''],  # us-east-1
             ['', ''],  # eu-west-1
         ]
+        self.security_group_bastion_id_list = ['', '', '']
+        self.security_group_elb_id_list = ['', '', '']
+        self.security_group_ec2_id_list = ['', '', '']
+        self.security_group_rds_id_list = ['', '', '']
 
         self.access_key = access_key
         self.secret_access_key = secret_access_key
 
     def createClient(self):
-        self.ap_northeast_2_client = boto3.client(
-            'ec2',
-            aws_access_key_id=self.access_key,
-            aws_secret_access_key=self.secret_access_key,
-            region_name='ap-northeast-2'
-        )
-        self.us_east_1_client = boto3.client(
-            'ec2',
-            aws_access_key_id=self.access_key,
-            aws_secret_access_key=self.secret_access_key,
-            region_name='us-east-1'
-        )
-        self.eu_west_1_client = boto3.client(
-            'ec2',
-            aws_access_key_id=self.access_key,
-            aws_secret_access_key=self.secret_access_key,
-            region_name='eu-west-1'
-        )
+        try:
+            self.ap_northeast_2_client = boto3.client(
+                'ec2',
+                aws_access_key_id=self.access_key,
+                aws_secret_access_key=self.secret_access_key,
+                region_name='ap-northeast-2'
+            )
+            self.us_east_1_client = boto3.client(
+                'ec2',
+                aws_access_key_id=self.access_key,
+                aws_secret_access_key=self.secret_access_key,
+                region_name='us-east-1'
+            )
+            self.eu_west_1_client = boto3.client(
+                'ec2',
+                aws_access_key_id=self.access_key,
+                aws_secret_access_key=self.secret_access_key,
+                region_name='eu-west-1'
+            )
+
+            ap_northeast_2_response = self.ap_northeast_2_client.describe_vpcs()
+            us_east_1_response = self.us_east_1_client.describe_vpcs()
+            eu_west_1_response = self.eu_west_1_client.describe_vpcs()
+
+        except ClientError as err:
+            raise err
 
     def createDhcpOptions(self):
         try:
@@ -160,7 +172,7 @@ class Aws:
         except ClientError as err:
             raise err
 
-    def creatVpc(self):
+    def createVpc(self):
         try:
             ap_northeast_2_response = self.ap_northeast_2_client.create_vpc(
                 CidrBlock='10.10.0.0/16',
@@ -1764,25 +1776,883 @@ class Aws:
     def describeNatGateways(self):
         try:
             ap_northeast_2_response = self.ap_northeast_2_client.describe_nat_gateways(
-                NatGatewayIds=[
-                    self.nat_gateway_id_list[0][0],  # NAT A
-                    self.nat_gateway_id_list[0][1],  # NAT B
-                ]
+                NatGatewayIds=self.nat_gateway_id_list[0]
             )
             us_east_1_response = self.us_east_1_client.describe_nat_gateways(
-                NatGatewayIds=[
-                    self.nat_gateway_id_list[1][0],  # NAT A
-                    self.nat_gateway_id_list[1][1],  # NAT B
-                ]
+                NatGatewayIds=self.nat_gateway_id_list[1]
             )
             eu_west_1_response = self.eu_west_1_client.describe_nat_gateways(
-                NatGatewayIds=[
-                    self.nat_gateway_id_list[2][0],  # NAT A
-                    self.nat_gateway_id_list[2][1],  # NAT B
-                ]
+                NatGatewayIds=self.nat_gateway_id_list[2]
             )
 
-            # TODO: Get NAT Gateways' States
+            nat_gateways_states = {
+                'ap-northeast-2': [
+                    {
+                        'State': nat_gateway['State'],
+                        'FailureMessage': nat_gateway['FailureMessage'],
+                        'AvailabilityZone':
+                            next((tag['Value'] for tag in nat_gateway['Tags'] if tag['Key'] == 'Name'), False)[-1]
+                    } for nat_gateway in ap_northeast_2_response['NatGateways']
+                ],
+                'us-east-1': [
+                    {
+                        'State': nat_gateway['State'],
+                        'FailureMessage': nat_gateway['FailureMessage'],
+                        'AvailabilityZone':
+                            next((tag['Value'] for tag in nat_gateway['Tags'] if tag['Key'] == 'Name'), False)[-1]
+                    } for nat_gateway in us_east_1_response['NatGateways']
+                ],
+                'eu-west-1': [
+                    {
+                        'State': nat_gateway['State'],
+                        'FailureMessage': nat_gateway['FailureMessage'],
+                        'AvailabilityZone':
+                            next((tag['Value'] for tag in nat_gateway['Tags'] if tag['Key'] == 'Name'), False)[-1]
+                    } for nat_gateway in eu_west_1_response['NatGateways']
+                ]
+            }
 
         except ClientError as err:
             raise err
+
+    def createRouteNatA(self):
+        try:
+            self.ap_northeast_2_client.create_route(
+                DestinationCidrBlock='0.0.0.0/0',
+                NatGatewayId=self.nat_gateway_id_list[0][0],
+                RouteTableId=self.route_table_list[0][1][0]
+            )
+            self.us_east_1_client.create_route(
+                DestinationCidrBlock='0.0.0.0/0',
+                NatGatewayId=self.nat_gateway_id_list[1][0],
+                RouteTableId=self.route_table_list[1][1][0]
+            )
+            self.eu_west_1_client.create_route(
+                DestinationCidrBlock='0.0.0.0/0',
+                NatGatewayId=self.nat_gateway_id_list[2][0],
+                RouteTableId=self.route_table_list[2][1][0]
+            )
+
+        except ClientError as err:
+            raise err
+
+    def createRouteNatB(self):
+        try:
+            self.ap_northeast_2_client.create_route(
+                DestinationCidrBlock='0.0.0.0/0',
+                NatGatewayId=self.nat_gateway_id_list[0][1],
+                RouteTableId=self.route_table_list[0][1][1]
+            )
+            self.us_east_1_client.create_route(
+                DestinationCidrBlock='0.0.0.0/0',
+                NatGatewayId=self.nat_gateway_id_list[1][1],
+                RouteTableId=self.route_table_list[1][1][1]
+            )
+            self.eu_west_1_client.create_route(
+                DestinationCidrBlock='0.0.0.0/0',
+                NatGatewayId=self.nat_gateway_id_list[2][1],
+                RouteTableId=self.route_table_list[2][1][1]
+            )
+
+        except ClientError as err:
+            raise err
+
+    def createSecurityGroupBastion(self):
+        try:
+            ap_northeast_2_response = self.ap_northeast_2_client.create_security_group(
+                Description='Security Group for Bastion EC2 Server.',
+                GroupName='MR-Bastion-SG',
+                VpcId=self.vpc_list[0],
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-Bastion-SG'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+            us_east_1_response = self.us_east_1_client.create_security_group(
+                Description='Security Group for Bastion EC2 Server.',
+                GroupName='MR-Bastion-SG',
+                VpcId=self.vpc_list[1],
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-Bastion-SG'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+            eu_west_1_response = self.eu_west_1_client.create_security_group(
+                Description='Security Group for Bastion EC2 Server.',
+                GroupName='MR-Bastion-SG',
+                VpcId=self.vpc_list[2],
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-Bastion-SG'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+
+            self.security_group_bastion_id_list[0] = ap_northeast_2_response['GroupId']
+            self.security_group_bastion_id_list[1] = us_east_1_response['GroupId']
+            self.security_group_bastion_id_list[2] = eu_west_1_response['GroupId']
+
+        except ClientError as err:
+            raise err
+
+    def createSecurityGroupELB(self):
+        try:
+            ap_northeast_2_response = self.ap_northeast_2_client.create_security_group(
+                Description='Security Group for Elastic Load Balancer.',
+                GroupName='MR-ELB-SG',
+                VpcId=self.vpc_list[0],
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-ELB-SG'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+            us_east_1_response = self.us_east_1_client.create_security_group(
+                Description='Security Group for Elastic Load Balancer.',
+                GroupName='MR-ELB-SG',
+                VpcId=self.vpc_list[1],
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-ELB-SG'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+            eu_west_1_response = self.eu_west_1_client.create_security_group(
+                Description='Security Group for Elastic Load Balancer.',
+                GroupName='MR-ELB-SG',
+                VpcId=self.vpc_list[2],
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-ELB-SG'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+
+            self.security_group_elb_id_list[0] = ap_northeast_2_response['GroupId']
+            self.security_group_elb_id_list[1] = us_east_1_response['GroupId']
+            self.security_group_elb_id_list[2] = eu_west_1_response['GroupId']
+
+        except ClientError as err:
+            raise err
+
+    def createSecurityGroupEC2(self):
+        try:
+            ap_northeast_2_response = self.ap_northeast_2_client.create_security_group(
+                Description='Security Group for WAS EC2 Server.',
+                GroupName='MR-EC2-SG',
+                VpcId=self.vpc_list[0],
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-EC2-SG'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+            us_east_1_response = self.us_east_1_client.create_security_group(
+                Description='Security Group for WAS EC2 Server.',
+                GroupName='MR-EC2-SG',
+                VpcId=self.vpc_list[1],
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-EC2-SG'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+            eu_west_1_response = self.eu_west_1_client.create_security_group(
+                Description='Security Group for WAS EC2 Server.',
+                GroupName='MR-EC2-SG',
+                VpcId=self.vpc_list[2],
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-EC2-SG'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+
+            self.security_group_ec2_id_list[0] = ap_northeast_2_response['GroupId']
+            self.security_group_ec2_id_list[1] = us_east_1_response['GroupId']
+            self.security_group_ec2_id_list[2] = eu_west_1_response['GroupId']
+
+        except ClientError as err:
+            raise err
+
+    def createSecurityGroupRDS(self):
+        try:
+            ap_northeast_2_response = self.ap_northeast_2_client.create_security_group(
+                Description='Security Group for Database RDS Server.',
+                GroupName='MR-RDS-SG',
+                VpcId=self.vpc_list[0],
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-RDS-SG'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+            us_east_1_response = self.us_east_1_client.create_security_group(
+                Description='Security Group for Database RDS Server.',
+                GroupName='MR-RDS-SG',
+                VpcId=self.vpc_list[1],
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-RDS-SG'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+            eu_west_1_response = self.eu_west_1_client.create_security_group(
+                Description='Security Group for Database RDS Server.',
+                GroupName='MR-RDS-SG',
+                VpcId=self.vpc_list[2],
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-RDS-SG'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+
+            self.security_group_rds_id_list[0] = ap_northeast_2_response['GroupId']
+            self.security_group_rds_id_list[1] = us_east_1_response['GroupId']
+            self.security_group_rds_id_list[2] = eu_west_1_response['GroupId']
+
+        except ClientError as err:
+            raise err
+
+    def authorizeSecurityGroupIngressBastionSgFrom20222(self):
+        try:
+            self.ap_northeast_2_client.authorize_security_group_ingress(
+                CidrIp='0.0.0.0/0',
+                FromPort=20222,
+                GroupId=self.security_group_bastion_id_list[0],
+                IpProtocol='tcp',
+                ToPort=20222,
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group-rule',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-Bastion-SG-Inbound-Rule-Allow-20222'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+            self.us_east_1_client.authorize_security_group_ingress(
+                CidrIp='0.0.0.0/0',
+                FromPort=20222,
+                GroupId=self.security_group_bastion_id_list[1],
+                IpProtocol='tcp',
+                ToPort=20222,
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group-rule',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-Bastion-SG-Inbound-Rule-Allow-20222'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+            self.eu_west_1_client.authorize_security_group_ingress(
+                CidrIp='0.0.0.0/0',
+                FromPort=20222,
+                GroupId=self.security_group_bastion_id_list[2],
+                IpProtocol='tcp',
+                ToPort=20222,
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group-rule',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-Bastion-SG-Inbound-Rule-Allow-20222'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+
+        except ClientError as err:
+            raise err
+
+    def authorizeSecurityGroupEgressBastionSgToAllTraffic(self):
+        try:
+            self.ap_northeast_2_client.authorize_security_group_egress(
+                CidrIp='0.0.0.0/0',
+                GroupId=self.security_group_bastion_id_list[0],
+                IpProtocol='-1',
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group-rule',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-Bastion-SG-Outbound-Rule-Allow-All-Traffic'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+            self.us_east_1_client.authorize_security_group_egress(
+                CidrIp='0.0.0.0/0',
+                GroupId=self.security_group_bastion_id_list[1],
+                IpProtocol='-1',
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group-rule',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-Bastion-SG-Outbound-Rule-Allow-All-Traffic'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+            self.eu_west_1_client.authorize_security_group_egress(
+                CidrIp='0.0.0.0/0',
+                GroupId=self.security_group_bastion_id_list[2],
+                IpProtocol='-1',
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group-rule',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-Bastion-SG-Outbound-Rule-Allow-All-Traffic'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+
+        except ClientError as err:
+            raise err
+
+    def authorizeSecurityGroupIngressElbSgFrom80(self):
+        try:
+            self.ap_northeast_2_client.authorize_security_group_ingress(
+                CidrIp='0.0.0.0/0',
+                FromPort=80,
+                GroupId=self.security_group_elb_id_list[0],
+                IpProtocol='tcp',
+                ToPort=80,
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group-rule',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-ELB-SG-Inbound-Rule-Allow-80'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+            self.us_east_1_client.authorize_security_group_ingress(
+                CidrIp='0.0.0.0/0',
+                FromPort=80,
+                GroupId=self.security_group_elb_id_list[1],
+                IpProtocol='tcp',
+                ToPort=80,
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group-rule',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-ELB-SG-Inbound-Rule-Allow-80'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+            self.eu_west_1_client.authorize_security_group_ingress(
+                CidrIp='0.0.0.0/0',
+                FromPort=80,
+                GroupId=self.security_group_elb_id_list[2],
+                IpProtocol='tcp',
+                ToPort=80,
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group-rule',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-ELB-SG-Inbound-Rule-Allow-80'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+
+        except ClientError as err:
+            raise err
+
+    def authorizeSecurityGroupIngressElbSgFrom443(self):
+        try:
+            self.ap_northeast_2_client.authorize_security_group_ingress(
+                CidrIp='0.0.0.0/0',
+                FromPort=443,
+                GroupId=self.security_group_elb_id_list[0],
+                IpProtocol='tcp',
+                ToPort=443,
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group-rule',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-ELB-SG-Inbound-Rule-Allow-443'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+            self.us_east_1_client.authorize_security_group_ingress(
+                CidrIp='0.0.0.0/0',
+                FromPort=443,
+                GroupId=self.security_group_elb_id_list[1],
+                IpProtocol='tcp',
+                ToPort=443,
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group-rule',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-ELB-SG-Inbound-Rule-Allow-443'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+            self.eu_west_1_client.authorize_security_group_ingress(
+                CidrIp='0.0.0.0/0',
+                FromPort=443,
+                GroupId=self.security_group_elb_id_list[2],
+                IpProtocol='tcp',
+                ToPort=443,
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group-rule',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-ELB-SG-Inbound-Rule-Allow-443'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+
+        except ClientError as err:
+            raise err
+
+    def authorizeSecurityGroupEgressElbSgToAllTraffic(self):
+        try:
+            self.ap_northeast_2_client.authorize_security_group_egress(
+                CidrIp='0.0.0.0/0',
+                GroupId=self.security_group_elb_id_list[0],
+                IpProtocol='-1',
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group-rule',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-ELB-SG-Outbound-Rule-Allow-All-Traffic'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+            self.us_east_1_client.authorize_security_group_egress(
+                CidrIp='0.0.0.0/0',
+                GroupId=self.security_group_elb_id_list[1],
+                IpProtocol='-1',
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group-rule',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-ELB-SG-Outbound-Rule-Allow-All-Traffic'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+            self.eu_west_1_client.authorize_security_group_egress(
+                CidrIp='0.0.0.0/0',
+                GroupId=self.security_group_elb_id_list[2],
+                IpProtocol='-1',
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group-rule',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-ELB-SG-Outbound-Rule-Allow-All-Traffic'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+
+        except ClientError as err:
+            raise err
+
+    def authorizeSecurityGroupIngressEc2SgFrom22(self):
+        # TODO: Add BastionSG Source Security Group
+        try:
+            self.ap_northeast_2_client.authorize_security_group_ingress(
+                CidrIp='0.0.0.0/0',
+                GroupId=self.security_group_ec2_id_list[0],
+                IpProtocol='tcp',
+
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group-rule',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-EC2-SG-Inbound-Rule-Allow-22'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+            self.us_east_1_client.authorize_security_group_ingress(
+                CidrIp='0.0.0.0/0',
+                GroupId=self.security_group_ec2_id_list[1],
+                IpProtocol='tcp',
+
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group-rule',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-EC2-SG-Inbound-Rule-Allow-22'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+            self.eu_west_1_client.authorize_security_group_ingress(
+                CidrIp='0.0.0.0/0',
+                GroupId=self.security_group_ec2_id_list[2],
+                IpProtocol='tcp',
+
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group-rule',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-EC2-SG-Inbound-Rule-Allow-22'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+
+        except ClientError as err:
+            raise err
+
+    def authorizeSecurityGroupIngressEc2SgFrom80(self):
+        try:
+            self.ap_northeast_2_client.authorize_security_group_ingress(
+                CidrIp='0.0.0.0/0',
+                FromPort=80,
+                GroupId=self.security_group_ec2_id_list[0],
+                IpProtocol='tcp',
+                ToPort=80,
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group-rule',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-EC2-SG-Inbound-Rule-Allow-80'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+            self.us_east_1_client.authorize_security_group_ingress(
+                CidrIp='0.0.0.0/0',
+                FromPort=80,
+                GroupId=self.security_group_ec2_id_list[1],
+                IpProtocol='tcp',
+                ToPort=80,
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group-rule',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-EC2-SG-Inbound-Rule-Allow-80'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+            self.eu_west_1_client.authorize_security_group_ingress(
+                CidrIp='0.0.0.0/0',
+                FromPort=80,
+                GroupId=self.security_group_ec2_id_list[2],
+                IpProtocol='tcp',
+                ToPort=80,
+                TagSpecifications=[
+                    {
+                        'ResourceType': 'security-group-rule',
+                        'Tags': [
+                            {
+                                'Key': 'Name',
+                                'Value': 'MR-EC2-SG-Inbound-Rule-Allow-80'
+                            },
+                            {
+                                'Key': 'Project',
+                                'Value': 'Multi-Region'
+                            }
+                        ]
+                    }
+                ]
+            )
+
+        except ClientError as err:
+            raise err
+
+    # TODO: Add other security groups
+
+    # def authorizeSecurityGroup
+
+    def deleteDhcpOptions(self):
+        self.ap_northeast_2_client.delete_dhcp_options(
+            DhcpOptionsId=self.dhcp_options_list[0]
+        )
+        self.us_east_1_client.delete_dhcp_options(
+            DhcpOptionsId=self.dhcp_options_list[1]
+        )
+        self.eu_west_1_client.delete_dhcp_options(
+            DhcpOptionsId=self.dhcp_options_list[2]
+        )
+
+    def deleteVpc(self):
+        self.ap_northeast_2_client.delete_vpc(
+            VpcId=self.vpc_list[0]
+        )
+        self.us_east_1_client.delete_vpc(
+            VpcId=self.vpc_list[1]
+        )
+        self.eu_west_1_client.delete_vpc(
+            VpcId=self.vpc_list[2]
+        )
+
+    def deleteAll(self):
+        self.deleteVpc()
+        self.deleteDhcpOptions()
