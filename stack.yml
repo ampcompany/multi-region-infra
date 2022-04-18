@@ -48,6 +48,8 @@ Resources:
       Tags:
         - Key: "Name"
           Value: "MR-VPC"
+        - Key: "Project"
+          Value: "Multi-Region"
   DHCPOptions:
     Type: AWS::EC2::DHCPOptions
     Properties:
@@ -58,6 +60,8 @@ Resources:
       Tags:
         - Key: "Name"
           Value: "MR-DHCP"
+        - Key: "Project"
+          Value: "Multi-Region"
   VPCDHCPOptionsAssociation:
     Type: AWS::EC2::VPCDHCPOptionsAssociation
     Properties:
@@ -79,6 +83,8 @@ Resources:
       Tags:
         - Key: "Name"
           Value: "MR-Public-Subnet-A"
+        - Key: "Project"
+          Value: "Multi-Region"
   PublicSubnetB:
     Type: AWS::EC2::Subnet
     Properties:
@@ -93,6 +99,8 @@ Resources:
       Tags:
         - Key: "Name"
           Value: "MR-Public-Subnet-B"
+        - Key: "Project"
+          Value: "Multi-Region"
   PrivateSubnetA:
     Type: AWS::EC2::Subnet
     Properties:
@@ -107,6 +115,8 @@ Resources:
       Tags:
         - Key: "Name"
           Value: "MR-Private-Subnet-A"
+        - Key: "Project"
+          Value: "Multi-Region"
   PrivateSubnetB:
     Type: AWS::EC2::Subnet
     Properties:
@@ -121,6 +131,8 @@ Resources:
       Tags:
         - Key: "Name"
           Value: "MR-Private-Subnet-B"
+        - Key: "Project"
+          Value: "Multi-Region"
   DatabaseSubnetA:
     Type: AWS::EC2::Subnet
     Properties:
@@ -135,6 +147,8 @@ Resources:
       Tags:
         - Key: "Name"
           Value: "MR-Database-Subnet-A"
+        - Key: "Project"
+          Value: "Multi-Region"
   DatabaseSubnetB:
     Type: AWS::EC2::Subnet
     Properties:
@@ -149,12 +163,16 @@ Resources:
       Tags:
         - Key: "Name"
           Value: "MR-Database-Subnet-B"
+        - Key: "Project"
+          Value: "Multi-Region"
   IGW:
     Type: AWS::EC2::InternetGateway
     Properties:
       Tags:
         - Key: "Name"
           Value: "MR-IGW"
+        - Key: "Project"
+          Value: "Multi-Region"
   VPCGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
     Properties:
@@ -170,6 +188,8 @@ Resources:
       Tags:
         - Key: "Name"
           Value: "MR-Public-Route"
+        - Key: "Project"
+          Value: "Multi-Region"
   PrivateRouteTableA:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -178,6 +198,8 @@ Resources:
       Tags:
         - Key: "Name"
           Value: "MR-Private-Route-A"
+        - Key: "Project"
+          Value: "Multi-Region"
   PrivateRouteTableB:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -186,6 +208,8 @@ Resources:
       Tags:
         - Key: "Name"
           Value: "MR-Private-Route-B"
+        - Key: "Project"
+          Value: "Multi-Region"
   DatabaseRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
@@ -194,6 +218,8 @@ Resources:
       Tags:
         - Key: "Name"
           Value: "MR-Database-Route"
+        - Key: "Project"
+          Value: "Multi-Region"
   PublicSubnetAPublicRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
@@ -252,6 +278,8 @@ Resources:
       Tags:
         - Key: "Name"
           Value: "MR-NACL"
+        - Key: "Project"
+          Value: "Multi-Region"
   NetworkAclInboundRuleAllow22:
     Type: AWS::EC2::NetworkAclEntry
     Properties:
@@ -388,12 +416,16 @@ Resources:
       Tags:
         - Key: "Name"
           Value: "MR-EIP-NAT-A"
+        - Key: "Project"
+          Value: "Multi-Region"
   NatGatewayEipB:
     Type: AWS::EC2::EIP
     Properties:
       Tags:
         - Key: "Name"
           Value: "MR-EIP-NAT-B"
+        - Key: "Project"
+          Value: "Multi-Region"
   NatGatewayA:
     Type: AWS::EC2::NatGateway
     Properties:
@@ -404,6 +436,8 @@ Resources:
       Tags:
         - Key: "Name"
           Value: "MR-NAT-A"
+        - Key: "Project"
+          Value: "Multi-Region"
   NatGatewayB:
     Type: AWS::EC2::NatGateway
     Properties:
@@ -414,6 +448,8 @@ Resources:
       Tags:
         - Key: "Name"
           Value: "MR-NAT-B"
+        - Key: "Project"
+          Value: "Multi-Region"
   PrivateRouteTableARouteNatGatewayA:
     Type: AWS::EC2::Route
     Properties:
@@ -448,6 +484,8 @@ Resources:
       Tags:
         - Key: "Name"
           Value: "MR-Bastion-SG"
+        - Key: "Project"
+          Value: "Multi-Region"
   ELBSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -470,6 +508,8 @@ Resources:
       Tags:
         - Key: "Name"
           Value: "MR-ELB-SG"
+        - Key: "Project"
+          Value: "Multi-Region"
   EC2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
@@ -494,6 +534,8 @@ Resources:
       Tags:
         - Key: "Name"
           Value: "MR-EC2-SG"
+        - Key: "Project"
+          Value: "Multi-Region"
   RDSSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Condition: isSeoul
@@ -513,3 +555,5 @@ Resources:
       Tags:
         - Key: "Name"
           Value: "MR-RDS-SG"
+        - Key: "Project"
+          Value: "Multi-Region"

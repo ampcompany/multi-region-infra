@@ -8,7 +8,7 @@ from automateVPCApplication.create import Create
 
 class Window:
     def __init__(self, parent):
-        parent.geometry('500x300')
+        parent.geometry('560x320')
         parent.title('AWS Multi Region Strategy VPC Generator')
 
 
@@ -86,6 +86,7 @@ class App:
             create = Create(
                 access_key=self.access_key_input_val.get(),
                 secret_access_key=self.secret_access_key_input_val.get(),
+                nat_option=self.nat_option_input_radiobutton_val.get(),
                 alert_label=self.alert_label,
                 progress_bar=self.progress_bar,
                 progress_bar_val=self.progress_bar_val,

@@ -6,7 +6,8 @@ PROCESS = 60
 
 
 class Create:
-    def __init__(self, access_key, secret_access_key, alert_label, progress_bar, progress_bar_val, scrolled_text):
+    def __init__(self, access_key, secret_access_key, nat_option, alert_label, progress_bar, progress_bar_val, scrolled_text):
+        self.nat_option = nat_option
         self.alert_label = alert_label
         self.progress_bar = progress_bar
         self.progress_bar_val = progress_bar_val
@@ -28,6 +29,16 @@ class Create:
         self.associateSubnetsToRouteTables(9)
         self.createRouteFromIGW(10)
         self.createNetworkAcl(11)
+        self.createNetworkAclEntry(12)
+        self.replaceNetworkAclAssociationSubnets(13)
+
+        if self.nat_option:
+            self.allocateAddressEips(14)
+            self.createNatGateways(15)
+        else:
+            pass
+
+        self.createSecurityGroups(16)
 
     def createLog(self, text, level):
         self.scrolled_text.configure(state='normal')
@@ -39,11 +50,21 @@ class Create:
         self.progress_bar_val.set(100.0 / PROCESS * progress)
         self.progress_bar.update()
 
-    def errorHandler(self, err_str):
-        self.createLog(err_str, 'ERROR')
+    def errorHandler(self, err, err_code):
+        self.createLog(err.__str__(), 'ERROR')
         self.alert_label.config(text='Failed.', fg='#ff0000')
+
+        if err_code == 0:
+            pass    # createClient and createDhcpOptions Error
+        elif err_code == 1:
+            self.aws.deleteDhcpOptions()    # createVpcs Error
+        else:
+            self.aws.deleteAll()    # All Errors
+
         self.progress_bar_val.set(100.0)
         self.progress_bar.update()
+
+        raise err
 
     def createClient(self, progress):
         try:
@@ -52,14 +73,12 @@ class Create:
             self.updateProgressBar(progress)
 
         except ClientError:
-            self.errorHandler('AuthFailure : Please check your access key and secret access key.')
+            self.errorHandler('AuthFailure : Please check your access key and secret access key.', 0)
 
             raise ClientError
 
         except Exception as err:
-            self.errorHandler(err.__str__())
-
-            raise err
+            self.errorHandler(err, 0)
 
     def createDhcpOptions(self, progress):
         try:
@@ -68,9 +87,7 @@ class Create:
             self.updateProgressBar(progress)
 
         except Exception as err:
-            self.errorHandler(err.__str__())
-
-            raise err
+            self.errorHandler(err, 0)
 
     def createVpcs(self, progress):
         try:
@@ -79,10 +96,7 @@ class Create:
             self.updateProgressBar(progress)
 
         except Exception as err:
-            self.aws.deleteDhcpOptions()
-            self.errorHandler(err.__str__())
-
-            raise err
+            self.errorHandler(err, 1)
 
     def associateDhcpOptions(self, progress):
         try:
@@ -91,10 +105,7 @@ class Create:
             self.updateProgressBar(progress)
 
         except Exception as err:
-            self.aws.deleteAll()
-            self.errorHandler(err.__str__())
-
-            raise err
+            self.errorHandler(err, 2)
 
     def createSubnets(self, progress):
         try:
@@ -113,10 +124,7 @@ class Create:
             self.updateProgressBar(progress)
 
         except Exception as err:
-            self.aws.deleteAll()
-            self.errorHandler(err.__str__())
-
-            raise err
+            self.errorHandler(err, 2)
 
     def createIGW(self, progress):
         try:
@@ -125,8 +133,7 @@ class Create:
             self.updateProgressBar(progress)
 
         except Exception as err:
-            self.aws.deleteAll()
-            self.errorHandler(err.__str__())
+            self.errorHandler(err, 2)
 
     def attachIGW(self, progress):
         try:
@@ -135,7 +142,7 @@ class Create:
             self.updateProgressBar(progress)
 
         except Exception as err:
-            self.errorHandler(err.__str__())
+            self.errorHandler(err, 2)
 
     def createRouteTables(self, progress):
         try:
@@ -150,7 +157,7 @@ class Create:
             self.updateProgressBar(progress)
 
         except Exception as err:
-            self.errorHandler(err.__str__())
+            self.errorHandler(err, 2)
 
     def associateSubnetsToRouteTables(self, progress):
         try:
@@ -169,7 +176,7 @@ class Create:
             self.updateProgressBar(progress)
 
         except Exception as err:
-            self.errorHandler(err.__str__())
+            self.errorHandler(err, 2)
 
     def createRouteFromIGW(self, progress):
         try:
@@ -178,7 +185,7 @@ class Create:
             self.updateProgressBar(progress)
 
         except Exception as err:
-            self.errorHandler(err.__str__())
+            self.errorHandler(err, 2)
 
     def createNetworkAcl(self, progress):
         try:
@@ -187,4 +194,70 @@ class Create:
             self.updateProgressBar(progress)
 
         except Exception as err:
-            self.errorHandler(err.__str__())
+            self.errorHandler(err, 2)
+
+    def createNetworkAclEntry(self, progress):
+        try:
+            self.createLog('Create Network ACLs\'s Inbound 22 Rule')
+            self.aws.createNetworkAclEntryInboundAllow22()
+            self.createLog('Create Network ACLs\'s Inbound 80 Rule')
+            self.aws.createNetworkAclEntryInboundAllow80()
+            self.createLog('Create Network ACLs\'s Inbound 443 Rule')
+            self.aws.createNetworkAclEntryInboundAllow443()
+            self.createLog('Create Network ACLs\'s Inbound 5234 Rule')
+            self.aws.createNetworkAclEntryInboundAllow5234()
+            self.createLog('Create Network ACLs\'s Inbound 20222 Rule')
+            self.aws.createNetworkAclEntryInboundAllow20222()
+            self.createLog('Create Network ACLs\'s Inbound 1024 to 65535 Rule')
+            self.aws.createNetworkAclEntryInboundAllow1024To65535()
+            self.createLog('Create Network ACLs\'s Outbound All Traffic Rule')
+            self.aws.createNetworkAclEntryOutboundAllowAllTraffic()
+            self.updateProgressBar(progress)
+
+        except Exception as err:
+            self.errorHandler(err, 2)
+
+    def replaceNetworkAclAssociationSubnets(self, progress):
+        try:
+            self.createLog('Replace Network ACL Association Subnets')
+            self.aws.replaceNetworkAclAssociationSubnets()
+            self.updateProgressBar(progress)
+
+        except Exception as err:
+            self.errorHandler(err, 2)
+
+    def allocateAddressEips(self, progress):
+        try:
+            self.createLog('Allocate Elastic IPs')
+            self.aws.allocateAddressEipA()
+            self.aws.allocateAddressEipB()
+            self.updateProgressBar(progress)
+
+        except Exception as err:
+            self.errorHandler(err, 2)
+
+    def createNatGateways(self, progress):
+        try:
+            self.createLog('Create NAT Gateways')
+            self.aws.createNatGatewayA()
+            self.aws.createNatGatewayB()
+            self.updateProgressBar(progress)
+
+        except Exception as err:
+            self.errorHandler(err, 2)
+
+    def createSecurityGroups(self, progress):
+        try:
+            self.createLog('Create Bastion EC2 Server Security Groups')
+            self.aws.createSecurityGroupBastion()
+            self.createLog('Create ELB Security Groups')
+            self.aws.createSecurityGroupELB()
+            self.createLog('Create WAS EC2 Server Security Groups')
+            self.aws.createSecurityGroupEC2()
+            self.createLog('Create RDS Database Server Security Groups')
+            self.aws.createSecurityGroupRDS()
+            self.updateProgressBar(progress)
+
+        except Exception as err:
+            self.errorHandler(err, 2)
+

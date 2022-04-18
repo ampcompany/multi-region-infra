@@ -1127,12 +1127,12 @@ class Aws:
             self.us_east_1_client.create_route(
                 DestinationCidrBlock='0.0.0.0/0',
                 GatewayId=self.internet_gateway_list[1],
-                RouteTableId=self.route_table_list[0][1][0]
+                RouteTableId=self.route_table_list[1][0][0]
             )
             self.eu_west_1_client.create_route(
                 DestinationCidrBlock='0.0.0.0/0',
                 GatewayId=self.internet_gateway_list[2],
-                RouteTableId=self.route_table_list[0][2][0]
+                RouteTableId=self.route_table_list[2][0][0]
             )
 
         except ClientError as err:
